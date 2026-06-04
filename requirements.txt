@@ -1,0 +1,33 @@
+# Medical Image Segmentation — ACDC Cardiac MRI
+# Python 3.12 (tested), Python 3.10+ should work
+#
+# ── PyTorch ────────────────────────────────────────────────────────────────────
+# Install PyTorch FIRST using the official command from https://pytorch.org/get-started
+# Choose the right variant for your hardware:
+#
+#   CPU only:
+#     pip install torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cpu
+#
+#   NVIDIA GPU (CUDA 12.4):
+#     pip install torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu124
+#
+#   Apple Silicon (MPS):
+#     pip install torch==2.6.0 torchvision
+#
+# Then install the rest of the dependencies:
+#   pip install -r requirements.txt
+# ───────────────────────────────────────────────────────────────────────────────
+
+# Core ML
+torch>=2.6.0
+
+# Medical image I/O — reads .nii / .nii.gz NIfTI files (ACDC dataset format)
+nibabel>=5.4.2
+
+# Numerical / scientific
+numpy>=1.26.4
+scipy>=1.13.1        # scipy.ndimage used for resampling in preprocessing
+
+# Visualisation & notebooks
+matplotlib>=3.8.4
+ipykernel>=6.28.0    # run .ipynb notebooks in VS Code / JupyterLab
