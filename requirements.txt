@@ -28,6 +28,9 @@ nibabel>=5.4.2
 numpy>=1.26.4
 scipy>=1.13.1        # scipy.ndimage used for resampling in preprocessing
 
+# Data analysis
+pandas>=2.2.0
+
 # Visualisation & notebooks
 matplotlib>=3.8.4
 ipykernel>=6.28.0    # run .ipynb notebooks in VS Code / JupyterLab
