@@ -30,7 +30,8 @@ def set_seed(seed: int=42):
 def main():
     set_seed(42)
 
-    DATASET_ROOT = "../data/ACDC"
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+    DATASET_ROOT = os.path.join(BASE_DIR, "data", "ACDC")
     RESULTS_DIR = "results"
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
