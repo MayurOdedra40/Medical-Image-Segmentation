@@ -77,8 +77,8 @@ def main():
     # ----------------------------
     # Experiments
     # ----------------------------
-    for exp in EXPERIMENTS:
-        print(f"\nRunning: {exp['name']}")
+    for idx, exp in enumerate(EXPERIMENTS):
+        print(f"\nRunning: {exp['name']} - experiment: {idx}/{len(EXPERIMENTS)}")
 
         model = exp["model"]().to(device)
         criterion = exp["loss_func"]()

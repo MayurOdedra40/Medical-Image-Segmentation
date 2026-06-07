@@ -15,7 +15,7 @@ MODELS = {
 }
 
 LOSSES = {
-    "CrossEntropyLoss": nn.CrossEntropyLoss,
+    # "CrossEntropyLoss": nn.CrossEntropyLoss,
     "DiceLoss": DiceLoss,
     "DiceCELoss": DiceCELoss,
 }
@@ -23,28 +23,17 @@ LOSSES = {
 OPTIMIZERS = {
     "Adam": optim.Adam,
     "AdamW": optim.AdamW,
-    "SGD": optim.SGD,
+    # "SGD": optim.SGD,
 }
 
 LEARNING_PARAMS_DEFAULT = {
     "lr": 1e-3,
     "weight_decay": 0.0,
-    "epochs": 2,
+    "epochs": 20,
     "batch_size": 8
 }
 
 EXPERIMENTS = [
-    # --------------------------------------------------
-    # Baseline
-    # --------------------------------------------------
-    {
-        **LEARNING_PARAMS_DEFAULT,
-
-        "name": "unet_ce_adam",
-        "model": MODELS["UNet"],
-        "loss_func": LOSSES["CrossEntropyLoss"],
-        "optimizer": OPTIMIZERS["Adam"],
-    },
     # --------------------------------------------------
     # Loss comparison
     # --------------------------------------------------
@@ -93,26 +82,5 @@ EXPERIMENTS = [
         "model": MODELS["UNet"],
         "loss_func": LOSSES["DiceCELoss"],
         "optimizer": OPTIMIZERS["AdamW"],
-    },
-    {
-        **LEARNING_PARAMS_DEFAULT,
-
-        "name": "unet_diceCE_sgd",
-        "model": MODELS["UNet"],
-        "loss_func": LOSSES["DiceCELoss"],
-        "optimizer": OPTIMIZERS["SGD"],
-    },
-    # --------------------------------------------------
-    # Hyperparameter comparison
-    # --------------------------------------------------
-    {
-        **LEARNING_PARAMS_DEFAULT,
-
-        "name": "unet_ce_adam_lr_1e4",
-        "model": MODELS["UNet"],
-        "loss_func": LOSSES["CrossEntropyLoss"],
-        "optimizer": OPTIMIZERS["Adam"],
-
-        "lr": 1e-4
     }
 ]
