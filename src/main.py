@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import torch
+torch.backends.cudnn.enabled = False
+torch.backends.cudnn.benchmark = False
 import random
 import json
 import numpy as np
