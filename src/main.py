@@ -1,6 +1,7 @@
 import os
 import random
 import json
+import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -57,15 +58,44 @@ def _make_prediction_figures(model, dataloader, device, n=4):
     return figs
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="ACDC segmentation experiment runner")
+    parser.add_argument(
+        "--gpu-id", type=int, default=None,
+        help="GPU index to use (e.g. 0, 1, 2). Defaults to cuda:0 or cpu.",
+    )
+    parser.add_argument(
+        "--total-gpus", type=int, default=1,
+        help="Total number of parallel processes. Splits experiments across shards.",
+    )
+    parser.add_argument(
+        "--shard", type=int, default=0,
+        help="Which shard of experiments this process runs (0-indexed, 0..total-gpus-1).",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     BASE_DIR     = os.path.dirname(os.path.dirname(__file__))
     DATASET_ROOT = os.path.join(BASE_DIR, "data", "ACDC")
     RESULTS_DIR  = os.path.join(BASE_DIR, "results")
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if args.gpu_id is not None and torch.cuda.is_available():
+        device = torch.device(f"cuda:{args.gpu_id}")
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+
+    # Shard the experiment list so parallel processes don't overlap
+    experiments = [
+        e for i, e in enumerate(EXPERIMENTS)
+        if i % args.total_gpus == args.shard
+    ]
+    print(f"Shard {args.shard}/{args.total_gpus}: running {len(experiments)}/{len(EXPERIMENTS)} experiments")
 
     # ------------------------------------------------------------------
     # Load + preprocess dataset once (shared across all experiments)
@@ -84,8 +114,8 @@ def main():
     # ------------------------------------------------------------------
     # Run experiments
     # ------------------------------------------------------------------
-    for idx, exp in enumerate(EXPERIMENTS):
-        print(f"\n[{idx + 1}/{len(EXPERIMENTS)}] Running: {exp['name']}")
+    for idx, exp in enumerate(experiments):
+        print(f"\n[{idx + 1}/{len(experiments)}] Running: {exp['name']}")
 
         set_seed(exp["seed"])
 
