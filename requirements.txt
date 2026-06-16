@@ -34,3 +34,6 @@ pandas>=2.2.0
 # Visualisation & notebooks
 matplotlib>=3.8.4
 ipykernel>=6.28.0    # run .ipynb notebooks in VS Code / JupyterLab
+
+# Experiment tracking
+wandb>=0.18

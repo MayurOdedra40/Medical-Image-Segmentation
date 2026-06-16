@@ -144,7 +144,7 @@ def normalize(image):
     std  = image.std()
     return (image - mean) / (std + 1e-8)
 
-def preprocess_patient(patient, target_spacing=(1.5, 1.5), target_shape=(256, 256, 18)):
+def preprocess_patient(patient, target_spacing=(1.5, 1.5), target_shape=(224, 224, 18)):
     """Resample + normalize + crop/pad — full pipeline for one patient."""
     spacing = patient["spacing"][:2]
 
@@ -169,7 +169,7 @@ def preprocess_patient(patient, target_spacing=(1.5, 1.5), target_shape=(256, 25
 
     return processed
 
-def crop_or_pad(volume, target_shape=(256, 256, 18)):
+def crop_or_pad(volume, target_shape=(224, 224, 18)):
     """
     Center crop or pad a 3D volume (H, W, slices) to target shape.
     """
