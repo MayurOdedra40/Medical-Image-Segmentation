@@ -165,7 +165,17 @@ def main():
     test_dataset    = ACDCDataset(test_processed, augment=False)
 
     # ---- random slice --------------------------------------------------------
-    idx         = random.randint(0, len(test_dataset) - 1)
+    #idx         = random.randint(0, len(test_dataset) - 1)
+    valid_indices = []
+
+    for i in range(len(test_dataset)):
+        _, mask = test_dataset[i]
+
+        if mask.max() > 0:
+            valid_indices.append(i)
+
+    idx = random.choice(valid_indices)
+
     image, mask = test_dataset[idx]          # (1, H, W), (H, W)
     print(f"Slice index: {idx}/{len(test_dataset)-1}  "
           f"image shape: {tuple(image.shape)}  unique labels: {mask.unique().tolist()}")
