@@ -584,6 +584,259 @@ def print_blockB_table(b_data):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# BLOCK C — Hyperparameter Search
+# ══════════════════════════════════════════════════════════════════════════════
+
+BLOCK_C_MODELS = ["UNet", "AttentionUNet", "TransUNet"]
+HP_DISPLAY_NAMES = {
+    "lr":           "Learning Rate",
+    "weight_decay": "Weight Decay",
+    "batch_size":   "Batch Size",
+    "optimizer":    "Optimizer",
+    "loss_func":    "Loss Function",
+}
+LOSS_SHORT_NAMES = {
+    "CrossEntropyOnlyLoss": "CE",
+    "DiceLoss":             "Dice",
+    "DiceCELoss":           "Dice+CE",
+}
+
+
+def blockC_summary(exps):
+    """Return {model: {"trials": [...], "best_trial": {...|None}}} from loaded experiments."""
+    out = {m: {"trials": []} for m in BLOCK_C_MODELS}
+
+    for name, exp in exps.items():
+        cfg = exp["config"]
+        if cfg.get("block") != "C":
+            continue
+        model = cfg.get("model")
+        if model not in out:
+            continue
+
+        loss_full    = cfg.get("loss_func", "")
+        loss_display = LOSS_SHORT_NAMES.get(loss_full, loss_full)
+
+        out[model]["trials"].append({
+            "trial":          cfg.get("trial", -1),
+            "lr":             cfg.get("lr", 0.0),
+            "weight_decay":   cfg.get("weight_decay", 0.0),
+            "batch_size":     cfg.get("batch_size", 8),
+            "optimizer":      cfg.get("optimizer", "?"),
+            "loss_func":      loss_display,
+            "loss_func_full": loss_full,
+            "best_dice_mean": exp["best"]["dice_mean"],
+            "best_dice_rv":   exp["best"]["dice_rv"],
+            "best_dice_myo":  exp["best"]["dice_myo"],
+            "best_dice_lv":   exp["best"]["dice_lv"],
+        })
+
+    for model in BLOCK_C_MODELS:
+        trials = out[model]["trials"]
+        out[model]["best_trial"] = (
+            max(trials, key=lambda t: t["best_dice_mean"]) if trials else None
+        )
+
+    return out
+
+
+def plot_blockC_scatter(c_data, out_path):
+    """5-panel scatter: each HP value vs best Dice mean, colored by model."""
+    hp_keys  = ["lr", "weight_decay", "batch_size", "optimizer", "loss_func"]
+    rng_jit  = np.random.default_rng(0)
+
+    fig, axes = plt.subplots(1, len(hp_keys), figsize=(5 * len(hp_keys), 5))
+    fig.suptitle("Block C — Hyperparameter vs Best Dice Mean",
+                 fontsize=14, fontweight="bold", y=1.01)
+
+    for ax, hp in zip(axes, hp_keys):
+        ax.set_title(HP_DISPLAY_NAMES[hp], fontsize=11)
+
+        all_vals, all_dices, all_models_list = [], [], []
+        for model in BLOCK_C_MODELS:
+            for t in c_data[model]["trials"]:
+                all_vals.append(t[hp])
+                all_dices.append(t["best_dice_mean"])
+                all_models_list.append(model)
+
+        if hp == "lr":
+            xs = np.array(all_vals, dtype=float)
+            ax.set_xscale("log")
+            ax.set_xlabel("LR (log scale)", fontsize=9)
+            for model in BLOCK_C_MODELS:
+                mask = np.array([m == model for m in all_models_list])
+                ax.scatter(xs[mask], np.array(all_dices)[mask],
+                           label=MODEL_NAMES[model], color=MODEL_COLORS[model],
+                           alpha=0.8, s=60, edgecolors="white", linewidths=0.5)
+        else:
+            unique_vals = sorted(set(all_vals), key=str)
+            val_to_pos  = {v: i for i, v in enumerate(unique_vals)}
+            ax.set_xticks(range(len(unique_vals)))
+            ax.set_xticklabels([str(v) for v in unique_vals],
+                               rotation=20, ha="right", fontsize=9)
+            for model in BLOCK_C_MODELS:
+                xs_cat, ys_cat = [], []
+                for val, dice, m in zip(all_vals, all_dices, all_models_list):
+                    if m == model:
+                        xs_cat.append(val_to_pos[val] + rng_jit.uniform(-0.15, 0.15))
+                        ys_cat.append(dice)
+                ax.scatter(xs_cat, ys_cat, label=MODEL_NAMES[model],
+                           color=MODEL_COLORS[model], alpha=0.8, s=60,
+                           edgecolors="white", linewidths=0.5)
+
+        ax.set_ylim(0.0, 1.0)
+        ax.set_ylabel("Best Dice Mean" if hp == "lr" else "")
+
+    handles = [
+        plt.scatter([], [], color=MODEL_COLORS[m], label=MODEL_NAMES[m], s=60)
+        for m in BLOCK_C_MODELS
+    ]
+    fig.legend(handles=handles, loc="upper center", ncol=3,
+               bbox_to_anchor=(0.5, 1.04), framealpha=0.9)
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {out_path}")
+
+
+def make_blockC_summary_table(c_data, out_path):
+    """Matplotlib table showing the best HP config found per model."""
+    col_headers = ["Model", "LR", "Weight Decay", "Batch", "Optimizer",
+                   "Loss", "Mean Dice", "RV", "Myo", "LV"]
+    rows = []
+    for model in BLOCK_C_MODELS:
+        bt = c_data[model].get("best_trial")
+        if bt is None:
+            rows.append([MODEL_NAMES[model]] + ["—"] * (len(col_headers) - 1))
+        else:
+            rows.append([
+                MODEL_NAMES[model],
+                f"{bt['lr']:.2e}",
+                str(bt["weight_decay"]),
+                str(bt["batch_size"]),
+                bt["optimizer"],
+                bt["loss_func"],
+                f"{bt['best_dice_mean']:.4f}",
+                f"{bt['best_dice_rv']:.4f}",
+                f"{bt['best_dice_myo']:.4f}",
+                f"{bt['best_dice_lv']:.4f}",
+            ])
+
+    fig, ax = plt.subplots(figsize=(max(14, len(col_headers) * 1.4), 1.6 + 0.55 * len(BLOCK_C_MODELS)))
+    ax.axis("off")
+    ax.set_title("Block C — Best Hyperparameter Config per Model",
+                 fontsize=13, fontweight="bold", pad=14)
+
+    tbl = ax.table(cellText=rows, colLabels=col_headers, loc="center", cellLoc="center")
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(9)
+    tbl.scale(1, 1.6)
+
+    for col in range(len(col_headers)):
+        tbl[0, col].set_facecolor("#37474F")
+        tbl[0, col].set_text_props(color="white", fontweight="bold")
+
+    dice_vals = [float(r[6]) for r in rows if r[6] != "—"]
+    best_dice = max(dice_vals) if dice_vals else None
+
+    for row_idx, row in enumerate(rows, start=1):
+        bg = "#F5F5F5" if row_idx % 2 == 0 else "white"
+        for col in range(len(col_headers)):
+            tbl[row_idx, col].set_facecolor(bg)
+        if best_dice is not None and row[6] != "—" and float(row[6]) == best_dice:
+            tbl[row_idx, 6].set_facecolor("#C8E6C9")
+            tbl[row_idx, 6].set_text_props(fontweight="bold")
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {out_path}")
+
+
+def plot_blockC_comparison_bars(a_data, c_data, out_path):
+    """Grouped bar chart: Block A baseline vs Block C best config per model."""
+    baseline_color = "#90A4AE"
+    tuned_color    = "#43A047"
+    bar_width      = 0.35
+    x              = np.arange(len(CLASS_KEYS))
+
+    fig, axes = plt.subplots(1, len(BLOCK_C_MODELS),
+                             figsize=(5 * len(BLOCK_C_MODELS), 5), sharey=True)
+    fig.suptitle("Block C — Tuned vs Baseline (Block A seed 42)",
+                 fontsize=14, fontweight="bold")
+
+    for ax, model in zip(axes, BLOCK_C_MODELS):
+        ax.set_title(MODEL_NAMES[model], fontsize=12)
+        ax.set_xticks(x)
+        ax.set_xticklabels(CLASS_LABELS)
+        ax.set_ylim(0.0, 1.0)
+        if model == BLOCK_C_MODELS[0]:
+            ax.set_ylabel("Dice Score")
+
+        a_vals = [
+            np.mean(a_data[model][k]) if a_data[model][k] else 0.0
+            for k in CLASS_KEYS
+        ]
+        bt     = c_data[model].get("best_trial")
+        c_vals = [bt[f"best_{k}"] if bt else 0.0 for k in CLASS_KEYS]
+
+        bars_a = ax.bar(x - bar_width / 2, a_vals, bar_width,
+                        color=baseline_color, alpha=0.85, label="Block A (baseline)")
+        bars_c = ax.bar(x + bar_width / 2, c_vals, bar_width,
+                        color=tuned_color,   alpha=0.85, label="Block C (tuned)")
+
+        for bar in bars_a:
+            h = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2, h + 0.01,
+                    f"{h:.3f}", ha="center", va="bottom", fontsize=7.5, color="#37474F")
+        for bar in bars_c:
+            h = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2, h + 0.01,
+                    f"{h:.3f}", ha="center", va="bottom", fontsize=7.5, color="#1B5E20")
+
+    handles = [
+        mpatches.Patch(color=baseline_color, alpha=0.85, label="Block A (baseline, seed 42)"),
+        mpatches.Patch(color=tuned_color,    alpha=0.85, label="Block C (best tuned config)"),
+    ]
+    fig.legend(handles=handles, loc="upper center", ncol=2,
+               bbox_to_anchor=(0.5, 1.04), framealpha=0.9)
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {out_path}")
+
+
+def print_blockC_table(c_data):
+    sep = "=" * 90
+    print(f"\n{sep}")
+    print("BLOCK C — Best Hyperparameter Config per Model")
+    print(sep)
+    print(f"{'Model':<20} {'LR':>9} {'WD':>7} {'BS':>5} {'Opt':>7} "
+          f"{'Loss':>10} {'Mean':>8} {'RV':>8} {'Myo':>8} {'LV':>8}")
+    print("-" * 90)
+    for model in BLOCK_C_MODELS:
+        bt = c_data[model].get("best_trial")
+        if bt is None:
+            print(f"{MODEL_NAMES[model]:<20}   (no trials found)")
+            continue
+        print(
+            f"{MODEL_NAMES[model]:<20} "
+            f"{bt['lr']:>9.2e} "
+            f"{bt['weight_decay']:>7} "
+            f"{bt['batch_size']:>5} "
+            f"{bt['optimizer']:>7} "
+            f"{bt['loss_func']:>10} "
+            f"{bt['best_dice_mean']:>8.4f} "
+            f"{bt['best_dice_rv']:>8.4f} "
+            f"{bt['best_dice_myo']:>8.4f} "
+            f"{bt['best_dice_lv']:>8.4f}"
+        )
+    print(sep)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -607,7 +860,17 @@ def main():
     plot_blockB_learning_curves(exps,    os.path.join(OUT_DIR, "blockB_learning_curves.png"))
     make_blockB_table(b_data,            os.path.join(OUT_DIR, "blockB_table.png"))
 
-    # Console summary tables
+    print("\nBlock C — Hyperparameter Search:")
+    c_data = blockC_summary(exps)
+    if any(c_data[m]["trials"] for m in BLOCK_C_MODELS):
+        plot_blockC_scatter(c_data,                    os.path.join(OUT_DIR, "blockC_scatter.png"))
+        make_blockC_summary_table(c_data,              os.path.join(OUT_DIR, "blockC_summary_table.png"))
+        plot_blockC_comparison_bars(a_data, c_data,    os.path.join(OUT_DIR, "blockC_comparison_bars.png"))
+        print_blockC_table(c_data)
+    else:
+        print("  No Block C results found yet. Run hyperparameter_search.py first.")
+
+    # Console summary tables for A & B
     print_blockA_table(a_data)
     print_blockB_table(b_data)
 

@@ -92,3 +92,19 @@ BLOCK_B_SWEEP = [
 # ---------------------------------------------------------------------------
 
 EXPERIMENTS = BLOCK_A + BLOCK_B_SWEEP
+
+# ---------------------------------------------------------------------------
+# Block C — Hyperparameter random search config
+# ---------------------------------------------------------------------------
+
+HP_SEARCH_SPACE = {
+    "lr":           ("log_uniform", 1e-4, 1e-2),
+    "weight_decay": ("choice",      [0.0, 1e-5, 1e-4, 1e-3]),
+    "batch_size":   ("choice",      [4, 8, 16]),
+    "optimizer":    ("choice",      ["Adam", "AdamW"]),
+    "loss_func":    ("choice",      ["CE", "DiceLoss", "DiceCELoss"]),
+}
+
+N_TRIALS     = 15   # random trials per model → 45 total runs
+PROXY_EPOCHS = 30   # training epochs per trial (short proxy)
+BLOCK_C_SEED = 42   # RNG seed controlling HP sampling (reproducible)
